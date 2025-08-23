@@ -28,9 +28,9 @@ const LoginPage: React.FC = () => {
         body: JSON.stringify(payload),
       });
 
-      navigate("/dashboard");
       localStorage.setItem("authToken", response.results.token);
       localStorage.setItem("userId", response.results.user._id);
+      navigate("/dashboard");
     } catch (error) {
       console.error("Error creating user:", error);
     }

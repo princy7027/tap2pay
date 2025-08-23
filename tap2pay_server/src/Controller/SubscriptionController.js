@@ -2,6 +2,7 @@
 import paypal from 'paypal-rest-sdk'
 import dotenv from 'dotenv'
 import Subscription from '../Model/Subscription.js'
+import mongoose from 'mongoose'
 dotenv.config()
 
 paypal.configure({
@@ -10,7 +11,6 @@ paypal.configure({
   client_secret: process.env.PAYPAL_CLIENT_SECRET,
 })
 
-// Create a billing plan
 export const createPlan = async (req, res) => {
   const billingPlanAttributes = {
     name: 'Monthly Subscription Plan',
@@ -27,8 +27,8 @@ export const createPlan = async (req, res) => {
       },
     ],
     merchant_preferences: {
-      return_url: 'http://localhost:3000/success',
-      cancel_url: 'http://localhost:3000/cancel',
+      return_url: 'http://localhost:5173/subscription-success',
+      cancel_url: 'http://localhost:5173/deshboard',
       auto_bill_amount: 'YES',
       initial_fail_amount_action: 'CONTINUE',
       max_fail_attempts: '1',
@@ -60,7 +60,7 @@ export const createSubscription = (req, res) => {
   const billingAgreementAttributes = {
     name: 'Monthly Agreement',
     description: 'Agreement for Monthly Subscription',
-    start_date: new Date(Date.now() + 60000).toISOString(),
+    start_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     plan: { id: planId },
     payer: { payment_method: 'paypal' },
   }
@@ -76,16 +76,22 @@ export const createSubscription = (req, res) => {
 // Execute after approval
 export const executeSubscription = async (req, res) => {
   const { token } = req.query
-  const userId = req.user?._id || 'demoUserId' // Replace with real user logic
+  console.log("Recevied token", token);
+
+  if (!token) {
+    return res.status(400).json({ message: "Missing token in query" });
+  }
+
+  const userId = req.headers['userId'];
 
   paypal.billingAgreement.execute(token, {}, async (error, agreement) => {
-    if (error) return res.status(500).json({ error })
+    if (error) return res.status(400).json({ error: 'Invalid Payment Token', details: error.response });
 
     try {
       const subscription = new Subscription({
         userId,
         agreementId: agreement.id,
-        planId: agreement.plan.id,
+        // planId: agreement.plan.id,
         state: agreement.state,
         startDate: agreement.start_date,
         payerInfo: {
@@ -95,8 +101,9 @@ export const executeSubscription = async (req, res) => {
         },
       })
 
-      await subscription.save()
-      res.status(200).json({ message: 'Subscription successful', agreement })
+      await subscription.save();
+      // return res.redirect('http://localhost:5173/subscription-success');
+      return res.status(200).json({ message: 'Subscription successful', agreement })
     } catch (dbError) {
       res.status(500).json({ error: 'DB Save failed', details: dbError })
     }

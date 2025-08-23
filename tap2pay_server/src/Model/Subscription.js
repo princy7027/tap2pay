@@ -12,7 +12,7 @@ const subscriptionSchema = new mongoose.Schema({
   },
   planId: {
     type: String,
-    required: true,
+    // required: true,
   },
   state: {
     type: String,

@@ -2,7 +2,7 @@ import Logger from "../Helper/Core/Logger.js";
 
 const ipAttempts = new Map();
 const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 5 * 60 * 1000; 
+const WINDOW_MS = 25 * 60 * 1000;     
 
 export function fraudDetection(req, res, next) {
   const ip = req.ip || req.connection.remoteAddress;

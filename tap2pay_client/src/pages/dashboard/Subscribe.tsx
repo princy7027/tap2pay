@@ -12,7 +12,11 @@ const Subscribe = () => {
     setError('')
     try {
       // Step 1: create plan (1 time or you can store planId in backend)
-      const planRes = await axios.post('http://localhost:3000/api/v1/subscription/plan')
+      const planRes = await axios.post('http://localhost:3000/api/v1/subscription/plan',{},{
+        headers:{
+          userId:localStorage.getItem('userId'),
+        }
+      })
       const planId = planRes.data.id
 
       // Step 2: generate approval URL using planId

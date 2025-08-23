@@ -74,7 +74,7 @@ export const createCheckoutSession = async (req, res) => {
       intent: 'sale',
       payer: { payment_method: 'paypal' },
       redirect_urls: {
-        return_url: 'http://localhost:5173/success?cart=' + cart + '&totalAmount=' + totalAmount,
+        return_url: 'http://localhost:5173/success?cart=' + cart + '&totalAmount=' + totalAmount + '&type=payment',
         cancel_url: 'http://localhost:5173/dashboard',
       },
       transactions: [{
@@ -128,25 +128,40 @@ function executePaymentAsync(paymentId, execute_payment_json) {
 
 export const executePayment = async (req, res) => {
   try {
-    const { paymentId, PayerID, cart, totalAmount } = req.body
-    
-    const bytesTotalAmount = CryptoJS.AES.decrypt(totalAmount?.replaceAll(' ', '+'), secretKey);
-    const decryptedString = bytesTotalAmount.toString(CryptoJS.enc.Utf8); // Might be: "\"42.00\""
-    const decryptedTotalAmount = parseFloat(JSON.parse(decryptedString)).toFixed(2); // "42.00"
-    
-    const execute_payment_json = {
-      payer_id: PayerID,
-      transactions: [{
-        amount: {
-          currency: 'USD',
-          total: decryptedTotalAmount,
-        },
-      }],
+    const { paymentId, PayerID, cart, totalAmount } = req.body;
+
+    // Validate required fields first
+    if (!paymentId || !PayerID || !totalAmount) {
+      return res.status(400).json({
+        message: 'Missing paymentId, PayerID or totalAmount',
+      });
     }
 
+    // Decrypt totalAmount safely
+    const bytesTotalAmount = CryptoJS.AES.decrypt(totalAmount?.replaceAll(' ', '+'), secretKey);
+    const decryptedString = bytesTotalAmount.toString(CryptoJS.enc.Utf8);
 
+    if (!decryptedString) {
+      return res.status(400).json({ message: 'Invalid encrypted amount' });
+    }
+
+    const decryptedTotalAmount = parseFloat(JSON.parse(decryptedString)).toFixed(2);
+
+    const execute_payment_json = {
+      payer_id: PayerID,
+      transactions: [
+        {
+          amount: {
+            currency: 'USD',
+            total: decryptedTotalAmount,
+          },
+        },
+      ],
+    };
+
+    // PayPal Execution
     const payment = await executePaymentAsync(paymentId, execute_payment_json);
-    console.log(payment);
+    console.log('PAYMENT RESPONSE:', payment);
 
     await Purchase.create({
       userId: req.headers['userId'],
@@ -157,33 +172,21 @@ export const executePayment = async (req, res) => {
     });
 
     Logger.info('Payment executed successfully');
-    return res.status(StatusCodes.OK).json(ApiResponse.success({ message: 'Payment executed successfully' }, StatusCodes.OK, 'Payment executed successfully'));
-    // paypal.payment.execute(paymentId, execute_payment_json, async (error, payment) => {
-    //   if (error) return res.status(500).json({ message: 'Payment execution failed', error })
-    //   console.log(payment)
-    //   await Purchase.create({
-    //     userId: req.headers['userId'],
-    //     planId: planId,
-    //     amount: 42,
-    //     paymentId: paymentId,
-    //     PayerID: PayerID,
-    //     cart: cart,
-    //   })
-    //   console.log('Purchase created successfully')
-    //   Logger.info('Payment executed successfully')
-    //   return res.status(200).json({ message: 'Payment executed successfully' })
-    // })
+    return res.status(StatusCodes.OK).json(
+      ApiResponse.success({ message: 'Payment executed successfully' }, StatusCodes.OK)
+    );
+
   } catch (error) {
-    console.log(error)
-    Logger.error(error.isJoi === true ? error.details : error)
+    console.log('EXECUTE PAYMENT ERROR:', error);
+    Logger.error(error.isJoi === true ? error.details : error);
     return res
-      .status(ApiResponse.StatusCodes.INTERNAL_SERVER_ERROR)
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json(
         ApiResponse.error(
           error.isJoi === true ? error.details : error,
-          ApiResponse.StatusCodes.INTERNAL_SERVER_ERROR,
-          'Invalid details provided.',
-        ),
-      )
+          StatusCodes.INTERNAL_SERVER_ERROR,
+          'Invalid details provided.'
+        )
+      );
   }
-}
+};

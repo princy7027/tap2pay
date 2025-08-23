@@ -4,11 +4,13 @@ import { toast } from 'react-hot-toast'
 const API_BASE = 'http://localhost:3000/api/v1'
 
 export const fetchWrapper = async (url, options = {}) => {
-    const token = localStorage.getItem('authToken') // or use cookie
+    const token = localStorage.getItem('authToken')
+    const userId = localStorage.getItem('userId') // ✅ GET userId
 
     const headers = {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `${token}` }),
+        ...(userId && { userId }), // ✅ ADD userId to headers
         ...options.headers,
     }
 
@@ -22,7 +24,7 @@ export const fetchWrapper = async (url, options = {}) => {
 
         const data = await response.json()
         if (data.code !== 200 && data.code !== 201) {
-            toast.error(data.message || 'Something went wrong')
+            // toast.error(data.message || 'Something went wrong')
             throw new Error(data.message || 'Request failed')
         }
 
