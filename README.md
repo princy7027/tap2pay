@@ -1,4 +1,4 @@
-# Payment Gateway System 
+# 💳 tap2pay - Payment Gateway System 
 
 ## 📌 Project Overview
 This project is a **Payment Gateway System** built using the **MERN stack (MongoDB, Express.js, React, Node.js)** with **PayPal integration**.  
